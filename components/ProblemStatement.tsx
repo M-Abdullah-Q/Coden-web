@@ -2,7 +2,7 @@
 import { Card } from "@/components/ui/card";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { useQuestionContext } from "@/providers/QuestionProvider";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import axios from "axios";
 import { useCodeContext } from "@/providers/CodeProvider";
 import { MultiStepLoader as Loader } from "./ui/multi-step-loader";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import 'katex/dist/katex.min.css';
 import katex from 'katex';
 
-const ProblemStatement = () => {
+
+const ProblemStatementContent = () => {
     const searchParams = useSearchParams();
     const qId = searchParams.get("q");
     const ongoing = searchParams.get("ongoing");
@@ -136,7 +137,6 @@ const ProblemStatement = () => {
                     {/* Input Description */}
                     {inputDescription && (
                         <div className="mt-4">
-                            {/* <h3 className="text-lg font-medium mb-2">Input</h3> */}
                             <div 
                                 className="prose dark:prose-invert max-w-none"
                                 ref={inputRef}
@@ -148,7 +148,6 @@ const ProblemStatement = () => {
                     {/* Output Description */}
                     {outputDescription && (
                         <div className="mt-4">
-                            {/* <h3 className="text-lg font-medium mb-2">Output</h3> */}
                             <div 
                                 className="prose dark:prose-invert max-w-none"
                                 ref={outputRef}
@@ -173,6 +172,33 @@ const ProblemStatement = () => {
                 </DialogContent>
             </Dialog>
         </>
+    );
+};
+
+// Loading fallback component
+const ProblemStatementFallback = () => {
+    return (
+        <Card>
+            <div className="p-6">
+                <div className="animate-pulse">
+                    <div className="h-6 bg-gray-200 rounded mb-4 w-1/3"></div>
+                    <div className="space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-full"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+                    </div>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+// Main component wrapped with Suspense
+const ProblemStatement = () => {
+    return (
+        <Suspense fallback={<ProblemStatementFallback />}>
+            <ProblemStatementContent />
+        </Suspense>
     );
 };
 
