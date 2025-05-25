@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { Settings, Code2, Play } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import CodeEditor from '@/components/CodeEditor'
