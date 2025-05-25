@@ -29,8 +29,9 @@ const TestResult = ({tests}: {tests: Test[]}) => {
   useEffect(() => {
     async function sse(){
       if(!exec) return;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-      const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_BASE_URL}/api/result?tokens=${tokens}`);
+      const eventSource = new EventSource(`${baseUrl}/api/result?tokens=${tokens}`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);

@@ -18,11 +18,10 @@ interface DetailsType {
   tests: TestType[];
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string, ongoing: boolean } }) {
+export async function GET(req: NextRequest, context: { params: { id: string } }) {
   try {
-    const searchParams = req.nextUrl.searchParams
-    const prms = await params;
-    const id = prms.id;
+    const searchParams = req.nextUrl.searchParams;
+    const id = context.params.id;
     const ongoing = searchParams.get("ongoing") === "true";
 
     const probSeturl = `https://codeforces.com/problemset/problem/${id.slice(0, -1)}/${id.slice(-1).toUpperCase()}`;
