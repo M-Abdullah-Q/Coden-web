@@ -1,6 +1,6 @@
 "use client";
 import { Card } from "@/components/ui/card";
-import { useSearchParams, useRouter, useParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuestionContext } from "@/providers/QuestionProvider";
 import { useEffect, useState, useRef, Suspense } from "react";
 import axios from "axios";
@@ -11,14 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import 'katex/dist/katex.min.css';
 import katex from 'katex';
 
-
+// Separate component that uses useSearchParams
 const ProblemStatementContent = () => {
     const searchParams = useSearchParams();
-    const qId = searchParams.get("q");
-    const ongoing = searchParams.get("ongoing");
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [mounted, setMounted] = useState(false);
     
     const descriptionRef = useRef(null);
     const inputRef = useRef(null);
@@ -47,14 +46,17 @@ const ProblemStatementContent = () => {
     
     const { setBoilerplates, setFullBoilerplates } = useCodeContext();
     
+    // Ensure component is mounted before accessing searchParams
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    
     // Function to properly render LaTeX in HTML content
     const renderMathContent = (content: any) => {
         if (!content) return "";
         
-        // First, sanitize the content by ensuring LaTeX delimiters are properly formatted
         let sanitizedContent = content
             .replace(/\$(.*?)\$/g, (match: any, p1: any) => {
-                // For inline math
                 try {
                     const rendered = katex.renderToString(p1, {
                         throwOnError: false,
@@ -63,11 +65,10 @@ const ProblemStatementContent = () => {
                     return rendered;
                 } catch (error) {
                     console.error("KaTeX error:", error);
-                    return match; // Return original if there's an error
+                    return match;
                 }
             })
             .replace(/\$\$(.*?)\$\$/g, (match: any, p1: any) => {
-                // For display math
                 try {
                     const rendered = katex.renderToString(p1, {
                         throwOnError: false,
@@ -76,7 +77,7 @@ const ProblemStatementContent = () => {
                     return rendered;
                 } catch (error) {
                     console.error("KaTeX error:", error);
-                    return match; // Return original if there's an error
+                    return match;
                 }
             });
         
@@ -84,37 +85,59 @@ const ProblemStatementContent = () => {
     };
     
     useEffect(() => {
-        if (!qId) return;
+        if (!mounted) return;
+        
+        const qId = searchParams.get("q");
+        const ongoing = searchParams.get("ongoing");
+        
+        console.log("Component mounted, qId:", qId, "ongoing:", ongoing);
+        console.log("Full search params:", searchParams.toString());
+        
+        if (!qId) {
+            console.log("No qId found, showing modal");
+            setLoading(false);
+            setShowModal(true);
+            return;
+        }
         
         async function loadQuestion() {
             try {
-                const res = await axios.get(`/api/scrape/${qId}?ongoing=${ongoing || 'false'}`);
+                const apiUrl = `/api/scrape/${qId}?ongoing=${ongoing || 'false'}`;
+                console.log(`Making API request to: ${apiUrl}`);
+                
+                const res = await axios.get(apiUrl);
+                console.log("API response received:", res.status);
+                
                 const data = res.data;
                 
-                setTitle(data.title);
-                setDescription(data.description);
-                setTimeLimit(data.timeLimit);
-                setMemoryLimit(data.memoryLimit);
-                setTests(data.tests);
-                setInputDescription(data.inputDescription);
-                setOutputDescription(data.outputDescription);
-                setOngoing(ongoing==='true');
+                setTitle(data.title || "Problem Title");
+                setDescription(data.description || "");
+                setTimeLimit(data.timeLimit || "");
+                setMemoryLimit(data.memoryLimit || "");
+                setTests(data.tests || []);
+                setInputDescription(data.inputDescription || "");
+                setOutputDescription(data.outputDescription || "");
+                setOngoing(ongoing === 'true');
                 
                 setLoading(false);
             } catch (error: any) {
-                if (error.response && error.response.status !== 200) {
-                    setLoading(false);
-                    setShowModal(true);
-                } else {
-                    console.error("Error fetching question:", error);
-                }
+                console.error("Error fetching question:", error);
+                console.error("Error response:", error.response?.data);
+                console.error("Error status:", error.response?.status);
+                
+                setLoading(false);
+                setShowModal(true);
             }
         }
         
         loadQuestion();
-    }, [qId, ongoing]);
+    }, [mounted, searchParams]);
     
-    // Pre-process the content to properly render LaTeX
+    // Don't render anything until mounted
+    if (!mounted) {
+        return <ProblemStatementFallback />;
+    }
+    
     const processedDescription = renderMathContent(description);
     const processedInputDescription = renderMathContent(inputDescription);
     const processedOutputDescription = renderMathContent(outputDescription);
@@ -168,6 +191,11 @@ const ProblemStatementContent = () => {
                         <DialogTitle>Uh Oh</DialogTitle>
                     </DialogHeader>
                     <p>The requested question is not supported or unavailable. Please try again.</p>
+                    <div className="mt-4 text-sm text-gray-600">
+                        <p>Debug info:</p>
+                        <p>Question ID: {searchParams.get("q") || "Not found"}</p>
+                        <p>Ongoing: {searchParams.get("ongoing") || "false"}</p>
+                    </div>
                     <Button onClick={() => router.push("/")}>Go to Home</Button>
                 </DialogContent>
             </Dialog>
