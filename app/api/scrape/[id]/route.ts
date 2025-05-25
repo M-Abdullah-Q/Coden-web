@@ -18,16 +18,19 @@ interface DetailsType {
   tests: TestType[];
 }
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET( req: NextRequest, { params }: { params: Promise<{ id: string }> })  {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const id = context.params.id;
+    const { id } = await params;
     const ongoing = searchParams.get("ongoing") === "true";
 
     const probSeturl = `https://codeforces.com/problemset/problem/${id.slice(0, -1)}/${id.slice(-1).toUpperCase()}`;
     const contestUrl = `https://codeforces.com/contest/${id.slice(0, -1)}/problem/${id.slice(-1).toUpperCase()}`;
     const url = ongoing ? contestUrl : probSeturl;
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for many hosting platforms
+    });
     const page = await browser.newPage();
 
     await page.setExtraHTTPHeaders({
