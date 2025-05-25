@@ -178,6 +178,6 @@ export async function GET( req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(modDetails, { status: 200 });
   } catch (error) {
     console.error("Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error }, { status: 500 });
   }
 }
