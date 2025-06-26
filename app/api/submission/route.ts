@@ -4,103 +4,99 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 const ratelimit = new Ratelimit({
-    redis : Redis.fromEnv(),
-    limiter : Ratelimit.slidingWindow(5, '60s') 
-})
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(5, "60s"),
+});
 
-export const config = {
-    runtime : 'edge'
-}
+// export const config = {
+//   runtime: "edge",
+// };
 
 function getClientIp(req: NextRequest): string {
-    const forwardedFor = req.headers.get('x-forwarded-for');
-    if (forwardedFor) {
-      return forwardedFor.split(',')[0].trim();
-    }
-    return '127.0.0.1';
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return "127.0.0.1";
 }
-
 
 interface TestType {
-    input: string;
-    output: string;
+  input: string;
+  output: string;
 }
 
-export async function POST(req: NextRequest){
+export async function POST(req: NextRequest) {
+  const body = await req.json();
 
-    const body = await req.json();
+  if (!body) {
+    return NextResponse.json({ message: "bad request" }, { status: 501 });
+  }
 
-    if(!body){
-        return NextResponse.json({message : "bad request"}, {status: 500})
-    }
+  const ip = getClientIp(req) ?? "127.0.0.1";
+  const { success } = await ratelimit.limit(ip);
 
-    const ip = getClientIp(req) ?? '127.0.0.1'
-    const { success } = await ratelimit.limit(ip);
+  if (!success) {
+    return NextResponse.json("Too many requests", { status: 429 });
+  }
 
-    if(!success){
-        return NextResponse.json('Too many requests', {status:429})
-    }
+  let { subCode, languageId, timeLimit, memoryLimit, tests } = body;
 
-    let {subCode, languageId, timeLimit, memoryLimit, tests} = body;
+  // const code = body.code;
+  // const languageId = body.languageId;
+  timeLimit = parseFloat(body.timeLimit.split(" ")[0]);
+  memoryLimit = parseInt(body.memoryLimit.split(" ")[0]) * 1000;
+  // tests = tests.map((test: TestType) => ({
+  //     ...test,
+  //     output: test.output.toLowerCase(),
+  // }));
 
-    // const code = body.code;
-    // const languageId = body.languageId;
-    timeLimit = parseFloat(body.timeLimit.split(" ")[0]);
-    memoryLimit = parseInt(body.memoryLimit.split(" ")[0])*1000;
-    // tests = tests.map((test: TestType) => ({
-    //     ...test,
-    //     output: test.output.toLowerCase(),
-    // }));
+  // console.log(`${subCode}`);
 
-    // console.log(`${subCode}`);
-    
+  const submissions = tests.map((test: TestType, index: number) => {
+    return {
+      language_id: languageId,
+      source_code: btoa(subCode),
+      stdin: btoa(test.input),
+      expected_output: btoa(test.output),
+      cpu_time_limit: timeLimit,
+      memory_limit: memoryLimit,
+    };
+  });
 
-    const submissions = tests.map((test: TestType,index: number) => {
-        return ({
-            language_id: languageId,
-            source_code: btoa(subCode),
-            stdin : btoa(test.input),
-            expected_output: btoa(test.output),
-            cpu_time_limit: timeLimit,
-            memory_limit: memoryLimit,
-        })
-    })
+  const postOptions = {
+    method: "POST",
+    url: process.env.NEXT_PUBLIC_JUDGE0_BATCHED_URL,
+    params: {
+      base64_encoded: "true",
+      wait: "true",
+    },
+    headers: {
+      "x-rapidapi-key": process.env.X_RAPID_API_KEY,
+      "x-rapidapi-host": process.env.X_RAPID_API_HOST,
+      "Content-Type": "application/json",
+    },
+    data: {
+      submissions,
+    },
+  };
 
-    const postOptions = {
-        method : "POST",
-        url: process.env.JUDGE0_BATCHED_URL,
-        params : {
-            base64_encoded: 'true',
-            wait: 'true'
-        },
-        headers: {
-            'x-rapidapi-key': process.env.X_RAPID_API_KEY,
-            'x-rapidapi-host': process.env.X_RAPID_API_HOST,
-            'Content-Type': 'application/json'
-        },
-        data : {
-            submissions
-        }
-    }
+  try {
+    const submitTokens = await axios.request(postOptions);
+    const tokens = submitTokens.data;
+    const tokenString = tokens.map((obj: any) => obj.token).join(",");
 
-    try {
-        const submitTokens = await axios.request(postOptions);
-        const tokens = submitTokens.data;
-        const tokenString = tokens.map((obj: any) => obj.token).join(',');
+    // axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/result`, {
+    //     params: { tokenString }
+    // });
 
-        // axios.get(`${process.env.NEXT_PUBLIC_BASE_URL}/api/result`, {
-        //     params: { tokenString }
-        // });
-    
-        // console.log("Result Response:", resultResponse.data);
-    
-        return NextResponse.json({tokenString});
-        // return NextResponse.json(submissions,{status : 200})
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({error},{status:418});
-    }
+    // console.log("Result Response:", resultResponse.data);
 
+    return NextResponse.json({ tokenString });
+    // return NextResponse.json(submissions,{status : 200})
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error }, { status: 418 });
+  }
 }
 
 // export async function GET(req: NextRequest){
@@ -121,12 +117,11 @@ export async function POST(req: NextRequest){
 //         }
 //     };
 
-      
 //     try {
 //         const response = await axios.request(options);
 //         return NextResponse.json(response.data)
 //         console.log(response.data);
-//     } 
+//     }
 //     catch (error) {
 //         console.error(error);
 //     }
