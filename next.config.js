@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  output: "standalone",
   eslint: {
     ignoreDuringBuilds: true,
   },

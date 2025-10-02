@@ -109,7 +109,7 @@ const ProblemStatementContent = () => {
 
     async function loadQuestion() {
       try {
-        const apiUrl = `${scrapeUrl}?id=${qId}&ongoing=${ongoing}`;
+        const apiUrl = `/api/scrape`;
         console.log(`Making API request to: ${apiUrl}`);
 
         const res = await axios.get(apiUrl);
